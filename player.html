@@ -493,6 +493,77 @@ function formatTime(sec){
   return `${m}:${String(s).padStart(2,"0")}`;
 }
 
+function updateMediaSession(track, stateText = "paused") {
+  if (!("mediaSession" in navigator)) return;
+  if (!track) return;
+
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: track.name || "Unknown",
+      artist: "My Music Player",
+      album: "Playlist",
+      artwork: [
+        { src: "IMG_3226.jpeg", sizes: "512x512", type: "image/jpeg" }
+      ]
+    });
+
+    navigator.mediaSession.playbackState = stateText === "playing" ? "playing" : "paused";
+  } catch (e) {
+    log("MediaSession metadata失敗: " + (e?.message || e));
+  }
+}
+
+function installMediaSessionHandlers() {
+  if (!("mediaSession" in navigator)) return;
+
+  try {
+    navigator.mediaSession.setActionHandler("play", async () => {
+      await playCurrent();
+    });
+  } catch {}
+
+  try {
+    navigator.mediaSession.setActionHandler("pause", () => {
+      pause();
+    });
+  } catch {}
+
+  try {
+    navigator.mediaSession.setActionHandler("previoustrack", async () => {
+      await prev();
+    });
+  } catch {}
+
+  try {
+    navigator.mediaSession.setActionHandler("nexttrack", async () => {
+      await next();
+    });
+  } catch {}
+
+  try {
+    navigator.mediaSession.setActionHandler("seekbackward", () => {
+      audio.currentTime = Math.max(0, audio.currentTime - 10);
+    });
+  } catch {}
+
+  try {
+    navigator.mediaSession.setActionHandler("seekforward", () => {
+      audio.currentTime = Math.min(
+        isFinite(audio.duration) ? audio.duration : 1e9,
+        audio.currentTime + 10
+      );
+    });
+  } catch {}
+
+  try {
+    navigator.mediaSession.setActionHandler("seekto", (details) => {
+      if (details.seekTime != null) {
+        audio.currentTime = details.seekTime;
+      }
+    });
+  } catch {}
+}
+
 function setNowText(name, status){
   nowName.textContent = name || "未再生";
   nowStatus.textContent = status || "";
