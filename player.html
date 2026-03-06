@@ -32,16 +32,18 @@
 
   * { box-sizing: border-box; }
 
-  body{
-    margin:0;
-    background:var(--bg);
-    color:var(--text);
-    font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-    padding:16px;
-    -webkit-user-select:none;
-    -webkit-touch-callout:none;
-    -webkit-tap-highlight-color:transparent;
-  }
+ body{
+  margin:0;
+  background:
+    linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)),
+    url("bg.jpg") center center / cover no-repeat fixed;
+  color:var(--text);
+  font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  padding:16px;
+  -webkit-user-select:none;
+  -webkit-touch-callout:none;
+  -webkit-tap-highlight-color:transparent;
+}
 
   .app{
     max-width:860px;
