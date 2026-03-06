@@ -1,0 +1,1014 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>My Music Player (Web)</title>
+<style>
+  :root{
+    --bg:#f6f7fb;
+    --card:#ffffff;
+    --line:#e6e8ef;
+    --text:#111827;
+    --sub:#6b7280;
+    --accent:#2563eb;
+    --accent-soft:#dbeafe;
+    --danger:#ef4444;
+    --shadow:0 8px 24px rgba(0,0,0,.06);
+    --radius:18px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    padding:16px;
+  }
+
+  .app{
+    max-width:860px;
+    margin:0 auto;
+  }
+
+  .title{
+    font-size:34px;
+    font-weight:800;
+    margin:8px 0 14px;
+    letter-spacing:-0.02em;
+  }
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:14px;
+    margin-bottom:14px;
+  }
+
+  .row{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+
+  .spacer{ flex:1; }
+
+  button, select, input[type="text"]{
+    border:none;
+    border-radius:16px;
+    padding:12px 16px;
+    font-size:16px;
+    background:#eceff5;
+    color:var(--text);
+  }
+
+  button{
+    cursor:pointer;
+  }
+
+  button.primary{
+    background:var(--accent);
+    color:white;
+  }
+
+  button.ghost{
+    background:#f3f4f6;
+  }
+
+  button.danger{
+    background:#fee2e2;
+    color:#991b1b;
+  }
+
+  select{
+    background:#f3f4f6;
+  }
+
+  .section-title{
+    font-size:24px;
+    font-weight:800;
+    margin:2px 0 8px;
+  }
+
+  .sub{
+    color:var(--sub);
+    font-size:13px;
+  }
+
+  .now-card{
+    background:linear-gradient(180deg,#ffffff 0%, #f8fbff 100%);
+  }
+
+  .now-top{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom:10px;
+  }
+
+  .art{
+    width:58px;
+    height:58px;
+    border-radius:16px;
+    background:linear-gradient(135deg,#dbeafe,#e5e7eb);
+    flex:0 0 auto;
+    border:1px solid var(--line);
+  }
+
+  .now-meta{
+    min-width:0;
+    flex:1;
+  }
+
+  .now-name{
+    font-size:18px;
+    font-weight:700;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  .now-status{
+    margin-top:4px;
+    color:var(--sub);
+    font-size:13px;
+  }
+
+  .control-row{
+    display:flex;
+    gap:10px;
+    justify-content:center;
+    align-items:center;
+    flex-wrap:wrap;
+    margin:8px 0 10px;
+  }
+
+  .control-row button{
+    min-width:64px;
+  }
+
+  .seek-wrap{
+    margin-top:6px;
+  }
+
+  input[type="range"]{
+    width:100%;
+  }
+
+  .time-row{
+    display:flex;
+    justify-content:space-between;
+    color:var(--sub);
+    font-size:13px;
+    margin-top:4px;
+  }
+
+  .file-name{
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    color:var(--sub);
+    font-size:14px;
+  }
+
+  .list{
+    list-style:none;
+    padding:0;
+    margin:0;
+  }
+
+  .item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:14px 10px;
+    border-top:1px solid var(--line);
+    user-select:none;
+  }
+
+  .item:first-child{
+    border-top:none;
+  }
+
+  .item.playing{
+    background:var(--accent-soft);
+    border-radius:14px;
+  }
+
+  .handle{
+    width:22px;
+    text-align:center;
+    opacity:.55;
+    font-size:20px;
+  }
+
+  .name{
+    flex:1;
+    min-width:0;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    font-size:16px;
+  }
+
+  .meta{
+    color:var(--sub);
+    font-size:13px;
+    flex:0 0 auto;
+  }
+
+  .pill{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:6px 10px;
+    border-radius:999px;
+    background:#f3f4f6;
+    color:var(--sub);
+    font-size:12px;
+  }
+
+  .playmark{
+    color:var(--accent);
+    font-weight:700;
+  }
+
+  .log{
+    white-space:pre-wrap;
+    font-size:12px;
+    color:#374151;
+    line-height:1.55;
+    max-height:220px;
+    overflow:auto;
+  }
+
+  .hidden{
+    display:none;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="title">マイ音楽プレイヤー（Web）</div>
+
+  <div class="card">
+    <div class="row">
+      <label>Playlist:</label>
+      <select id="plSelect"></select>
+      <button id="plNew">＋</button>
+      <button id="plRename">名前</button>
+      <button id="plDelete" class="danger">削除</button>
+      <span class="spacer"></span>
+      <button id="editToggle">編集: OFF</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <input id="filePick" type="file" accept="*/*" multiple />
+      <div id="pickedName" class="file-name">未選択</div>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <button id="sortNum">番号順ソート</button>
+      <button id="clearTracks" class="danger">曲を全消し(このリストだけ)</button>
+    </div>
+  </div>
+
+  <div class="card now-card">
+    <div class="now-top">
+      <div class="art"></div>
+      <div class="now-meta">
+        <div id="nowName" class="now-name">未再生</div>
+        <div id="nowStatus" class="now-status">曲をタップして再生</div>
+      </div>
+    </div>
+
+    <div class="control-row">
+      <button id="prev">⏮</button>
+      <button id="back10">-10s</button>
+      <button id="play" class="primary">▶︎/⏸</button>
+      <button id="fwd10">+10s</button>
+      <button id="next">⏭</button>
+      <button id="stop">⏹</button>
+    </div>
+
+    <div class="seek-wrap">
+      <input id="seek" type="range" min="0" max="1" step="0.01" value="0"/>
+      <div class="time-row">
+        <span id="tCur">0:00</span>
+        <span id="tDur">0:00</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">プレイリスト</div>
+    <div class="sub" style="margin-bottom:8px;">タップで即再生 / 編集ONで並べ替え</div>
+    <ul id="trackList" class="list"></ul>
+  </div>
+
+  <div class="card">
+    <div class="row" style="margin-bottom:8px;">
+      <b>ログ</b>
+      <span class="spacer"></span>
+      <button id="logClear">消去</button>
+    </div>
+    <div id="log" class="log"></div>
+  </div>
+
+</div>
+
+<script>
+/* ---------------------------
+ * IndexedDB
+ * -------------------------- */
+const DB_NAME = "my_music_player_db_v1";
+const DB_STORE = "files";
+
+function openDB(){
+  return new Promise((resolve, reject)=>{
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(DB_STORE)) {
+        db.createObjectStore(DB_STORE);
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function dbPutFile(key, file){
+  const db = await openDB();
+  return new Promise((resolve, reject)=>{
+    const tx = db.transaction(DB_STORE, "readwrite");
+    tx.objectStore(DB_STORE).put(file, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function dbGetFile(key){
+  const db = await openDB();
+  return new Promise((resolve, reject)=>{
+    const tx = db.transaction(DB_STORE, "readonly");
+    const req = tx.objectStore(DB_STORE).get(key);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function dbDeleteFile(key){
+  const db = await openDB();
+  return new Promise((resolve, reject)=>{
+    const tx = db.transaction(DB_STORE, "readwrite");
+    tx.objectStore(DB_STORE).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/* ---------------------------
+ * Data model & persistence
+ * -------------------------- */
+const STORE_KEY = "my_music_player_web_v3";
+
+function loadStore() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+function saveStore(store) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(store));
+}
+
+function defaultStore() {
+  return {
+    playlists: [{ id: crypto.randomUUID(), name: "Default", tracks: [] }],
+    selectedId: null
+  };
+}
+
+let store = loadStore() || defaultStore();
+if (!store.selectedId) store.selectedId = store.playlists[0]?.id || null;
+
+function plIndexById(id){ return store.playlists.findIndex(p => p.id === id); }
+function currentPL() {
+  const i = plIndexById(store.selectedId);
+  return (i >= 0) ? store.playlists[i] : null;
+}
+
+/* Track object:
+ * { id, name, fileId, durationSec? }
+ */
+
+let fileMap = new Map(); // fileId -> { file, url }
+let audio = document.getElementById("audio") || new Audio();
+audio.controls = true;
+audio.playsInline = true;
+
+let currentIndex = -1;
+let editMode = false;
+let scrubbing = false;
+
+/* ---------------------------
+ * UI refs
+ * -------------------------- */
+const plSelect = document.getElementById("plSelect");
+const plNew = document.getElementById("plNew");
+const plRename = document.getElementById("plRename");
+const plDelete = document.getElementById("plDelete");
+const editToggle = document.getElementById("editToggle");
+
+const filePick = document.getElementById("filePick");
+const pickedName = document.getElementById("pickedName");
+const sortNum = document.getElementById("sortNum");
+const clearTracks = document.getElementById("clearTracks");
+
+const btnPrev = document.getElementById("prev");
+const btnBack10 = document.getElementById("back10");
+const btnPlay = document.getElementById("play");
+const btnFwd10 = document.getElementById("fwd10");
+const btnNext = document.getElementById("next");
+const btnStop = document.getElementById("stop");
+
+const nowName = document.getElementById("nowName");
+const nowStatus = document.getElementById("nowStatus");
+
+const seek = document.getElementById("seek");
+const tCur = document.getElementById("tCur");
+const tDur = document.getElementById("tDur");
+
+const trackList = document.getElementById("trackList");
+const logEl = document.getElementById("log");
+const logClear = document.getElementById("logClear");
+
+/* ---------------------------
+ * utils
+ * -------------------------- */
+function log(msg){
+  const line = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  logEl.textContent = (logEl.textContent ? logEl.textContent + "\n" : "") + line;
+  console.log(msg);
+}
+
+function formatTime(sec){
+  if (!isFinite(sec) || sec < 0) return "0:00";
+  sec = Math.floor(sec);
+  const m = Math.floor(sec/60);
+  const s = sec % 60;
+  return `${m}:${String(s).padStart(2,"0")}`;
+}
+
+function setNowText(name, status){
+  nowName.textContent = name || "未再生";
+  nowStatus.textContent = status || "";
+}
+
+function leadingNumber(name){
+  const m = name.match(/^(\d+)/);
+  return m ? parseInt(m[1],10) : null;
+}
+
+/* ---------------------------
+ * file cache
+ * -------------------------- */
+async function ensureFileLoaded(fileId){
+  let entry = fileMap.get(fileId);
+  if (entry?.file) return entry.file;
+
+  const file = await dbGetFile(fileId);
+  if (!file) return null;
+
+  fileMap.set(fileId, { file, url: null });
+  return file;
+}
+
+async function ensureURLForTrack(track){
+  let entry = fileMap.get(track.fileId);
+  if (!entry || !entry.file) {
+    const file = await ensureFileLoaded(track.fileId);
+    if (!file) return null;
+    entry = fileMap.get(track.fileId);
+  }
+  if (!entry.url) {
+    entry.url = URL.createObjectURL(entry.file);
+  }
+  return entry.url;
+}
+
+/* ---------------------------
+ * render
+ * -------------------------- */
+function renderPlaylists(){
+  plSelect.innerHTML = "";
+  store.playlists.forEach(p => {
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = p.name;
+    plSelect.appendChild(opt);
+  });
+  plSelect.value = store.selectedId;
+}
+
+function renderTracks(){
+  const pl = currentPL();
+  trackList.innerHTML = "";
+
+  if (!pl || pl.tracks.length === 0){
+    const li = document.createElement("li");
+    li.className = "item";
+    li.innerHTML = `<span class="name meta">（曲がありません）</span>`;
+    trackList.appendChild(li);
+    return;
+  }
+
+  pl.tracks.forEach((t, i) => {
+    const li = document.createElement("li");
+    li.className = "item" + (i === currentIndex ? " playing" : "");
+    li.draggable = editMode;
+    li.dataset.index = i;
+
+    const handle = document.createElement("span");
+    handle.className = "handle";
+    handle.textContent = editMode ? "☰" : "•";
+
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = t.name;
+
+    const meta = document.createElement("span");
+    meta.className = "meta";
+    meta.textContent = t.durationSec ? formatTime(t.durationSec) : "";
+
+    const mark = document.createElement("span");
+    mark.className = "pill";
+    mark.innerHTML = (i === currentIndex) ? `<span class="playmark">再生中</span>` : `曲`;
+
+    const del = document.createElement("button");
+    del.textContent = "削除";
+    del.onclick = async (ev) => {
+      ev.stopPropagation();
+      await removeTrack(i);
+    };
+
+    li.onclick = async () => {
+      await playAt(i);
+    };
+
+    li.appendChild(handle);
+    li.appendChild(name);
+    li.appendChild(meta);
+    li.appendChild(mark);
+    li.appendChild(del);
+
+    li.addEventListener("dragstart", (e)=>{
+      e.dataTransfer.setData("text/plain", String(i));
+    });
+    li.addEventListener("dragover", (e)=>{
+      if (!editMode) return;
+      e.preventDefault();
+    });
+    li.addEventListener("drop", (e)=>{
+      if (!editMode) return;
+      e.preventDefault();
+      const from = Number(e.dataTransfer.getData("text/plain"));
+      const to = i;
+      moveTrack(from, to);
+    });
+
+    trackList.appendChild(li);
+  });
+}
+
+/* ---------------------------
+ * playlist ops
+ * -------------------------- */
+function sortByFilenameNumeric(){
+  const pl = currentPL();
+  if (!pl) return;
+
+  const currentTrackId = (currentIndex>=0 && pl.tracks[currentIndex]) ? pl.tracks[currentIndex].id : null;
+
+  pl.tracks.sort((a,b)=>{
+    const na = leadingNumber(a.name);
+    const nb = leadingNumber(b.name);
+    if (na != null && nb != null && na !== nb) return na - nb;
+    return a.name.localeCompare(b.name, undefined, {numeric:true, sensitivity:"base"});
+  });
+
+  if (currentTrackId){
+    currentIndex = pl.tracks.findIndex(t => t.id === currentTrackId);
+  }
+
+  saveStore(store);
+  log("ソート: ファイル名(番号)順");
+  renderTracks();
+}
+
+function moveTrack(from, to){
+  const pl = currentPL();
+  if (!pl) return;
+  if (from===to) return;
+  if (from<0||to<0||from>=pl.tracks.length||to>=pl.tracks.length) return;
+
+  const currentTrackId = (currentIndex>=0 && pl.tracks[currentIndex]) ? pl.tracks[currentIndex].id : null;
+
+  const [item] = pl.tracks.splice(from,1);
+  pl.tracks.splice(to,0,item);
+
+  if (currentTrackId){
+    currentIndex = pl.tracks.findIndex(t=>t.id===currentTrackId);
+  }
+
+  saveStore(store);
+  log("並べ替え: 手動");
+  renderTracks();
+}
+
+async function removeTrack(i){
+  const pl = currentPL();
+  if (!pl) return;
+  if (i<0 || i>=pl.tracks.length) return;
+
+  const removing = pl.tracks[i];
+  pl.tracks.splice(i,1);
+
+  if (currentIndex === i){
+    stop();
+    currentIndex = -1;
+  } else if (currentIndex > i){
+    currentIndex -= 1;
+  }
+  if (pl.tracks.length === 0) currentIndex = -1;
+
+  // 他のプレイリストで同じ fileId を使っていなければ DB からも削除
+  const stillUsed = store.playlists.some(p => p.tracks.some(t => t.fileId === removing.fileId));
+  if (!stillUsed) {
+    const entry = fileMap.get(removing.fileId);
+    if (entry?.url) URL.revokeObjectURL(entry.url);
+    fileMap.delete(removing.fileId);
+    await dbDeleteFile(removing.fileId);
+  }
+
+  saveStore(store);
+  log(`削除: ${removing.name}`);
+  renderTracks();
+}
+
+async function clearCurrentPlaylistTracks(){
+  const pl = currentPL();
+  if (!pl) return;
+
+  const fileIds = pl.tracks.map(t => t.fileId);
+  stop();
+  currentIndex = -1;
+  pl.tracks = [];
+
+  for (const fileId of fileIds) {
+    const stillUsed = store.playlists.some(p => p.tracks.some(t => t.fileId === fileId));
+    if (!stillUsed) {
+      const entry = fileMap.get(fileId);
+      if (entry?.url) URL.revokeObjectURL(entry.url);
+      fileMap.delete(fileId);
+      await dbDeleteFile(fileId);
+    }
+  }
+
+  saveStore(store);
+  log("このプレイリストの曲を全消去");
+  renderTracks();
+}
+
+/* ---------------------------
+ * playback
+ * -------------------------- */
+async function prepareTrack(i){
+  const pl = currentPL();
+  if (!pl || pl.tracks.length===0) return false;
+  if (i<0 || i>=pl.tracks.length) return false;
+
+  const t = pl.tracks[i];
+  const url = await ensureURLForTrack(t);
+  if (!url){
+    log(`準備失敗: ${t.name} のファイル参照がありません`);
+    return false;
+  }
+
+  currentIndex = i;
+  audio.src = url;
+  setNowText(t.name, "準備完了");
+  renderTracks();
+  return true;
+}
+
+async function playCurrent(){
+  const pl = currentPL();
+  if (!pl || pl.tracks.length===0){
+    log("play()失敗: プレイリストが空です");
+    return false;
+  }
+
+  if (currentIndex < 0) {
+    const ok = await prepareTrack(0);
+    if (!ok) return false;
+  }
+
+  try {
+    await audio.play();
+    const t = currentPL()?.tracks[currentIndex];
+    setNowText(t ? t.name : "再生中", "再生中");
+    log(`再生開始: ${t?.name || ""}`);
+    renderTracks();
+    return true;
+  } catch (e) {
+    log(`play()失敗: ${e?.name || e} / ${e?.message || ""}`);
+    return false;
+  }
+}
+
+async function playAt(i){
+  const ok = await prepareTrack(i);
+  if (!ok) return;
+  await playCurrent();
+}
+
+function pause(){
+  audio.pause();
+  setNowText(currentPL()?.tracks[currentIndex]?.name || "一時停止", "一時停止");
+  log("一時停止");
+}
+
+function stop(){
+  audio.pause();
+  try { audio.currentTime = 0; } catch {}
+  setNowText("停止", "停止");
+  log("停止");
+}
+
+async function next(){
+  const pl = currentPL();
+  if (!pl) return;
+  if (currentIndex + 1 < pl.tracks.length) {
+    await playAt(currentIndex + 1);
+  } else {
+    log("最後の曲 → 停止");
+    stop();
+  }
+}
+
+async function prev(){
+  const pl = currentPL();
+  if (!pl || pl.tracks.length===0) return;
+  await playAt(Math.max(0, currentIndex - 1));
+}
+
+/* ---------------------------
+ * seek
+ * -------------------------- */
+audio.addEventListener("timeupdate", ()=>{
+  if (scrubbing) return;
+  const d = audio.duration;
+  if (isFinite(d) && d > 0){
+    seek.max = String(d);
+    seek.value = String(audio.currentTime);
+    tCur.textContent = formatTime(audio.currentTime);
+    tDur.textContent = formatTime(d);
+  }
+});
+
+seek.addEventListener("input", ()=>{
+  scrubbing = true;
+  tCur.textContent = formatTime(Number(seek.value));
+});
+
+seek.addEventListener("change", ()=>{
+  const v = Number(seek.value);
+  if (isFinite(v)) audio.currentTime = v;
+  scrubbing = false;
+});
+
+audio.addEventListener("ended", async ()=>{
+  log("曲終了 → 次へ");
+  await next();
+});
+
+/* ---------------------------
+ * file import
+ * -------------------------- */
+filePick.addEventListener("change", async ()=>{
+  const pl = currentPL();
+  if (!pl) {
+    log("filePick change: current playlist がありません");
+    return;
+  }
+
+  const picked = Array.from(filePick.files || []);
+  log(`filePick change: files=${picked.length}`);
+
+  if (picked.length === 0) {
+    pickedName.textContent = "未選択";
+    return;
+  }
+
+  pickedName.textContent = picked.map(f => f.name).join(", ");
+
+  for (const f of picked){
+    const fileId = crypto.randomUUID();
+
+    await dbPutFile(fileId, f);
+    fileMap.set(fileId, { file: f, url: null });
+
+    const track = {
+      id: crypto.randomUUID(),
+      name: f.name,
+      fileId,
+      durationSec: null
+    };
+
+    pl.tracks.push(track);
+    log(`追加予定: ${f.name} type=${f.type || "(unknown)"}`);
+
+    try {
+      const tmp = document.createElement("audio");
+      const tmpURL = URL.createObjectURL(f);
+      tmp.src = tmpURL;
+
+      await new Promise(res=>{
+        tmp.addEventListener("loadedmetadata", res, { once:true });
+        tmp.addEventListener("error", res, { once:true });
+        setTimeout(res, 1200);
+      });
+
+      if (isFinite(tmp.duration) && tmp.duration > 0) {
+        track.durationSec = tmp.duration;
+      }
+      URL.revokeObjectURL(tmpURL);
+    } catch (e) {
+      log(`duration取得失敗: ${f.name} / ${e?.name || e}`);
+    }
+  }
+
+  saveStore(store);
+  renderTracks();
+
+  if (currentIndex < 0 && pl.tracks.length > 0) {
+    await prepareTrack(0);
+  }
+
+  filePick.value = "";
+  log(`追加完了: ${picked.length}件`);
+});
+
+/* ---------------------------
+ * playlist UI
+ * -------------------------- */
+plSelect.addEventListener("change", ()=>{
+  store.selectedId = plSelect.value;
+  saveStore(store);
+  stop();
+  currentIndex = -1;
+  renderTracks();
+  setNowText("未再生", "曲をタップして再生");
+  log("プレイリスト切替");
+});
+
+plNew.addEventListener("click", ()=>{
+  const name = prompt("新規プレイリスト名", "New Playlist");
+  if (!name) return;
+  const p = { id: crypto.randomUUID(), name, tracks: [] };
+  store.playlists.push(p);
+  store.selectedId = p.id;
+  saveStore(store);
+  renderPlaylists();
+  stop();
+  currentIndex = -1;
+  renderTracks();
+  setNowText("未再生", "曲をタップして再生");
+  log(`プレイリスト作成: ${name}`);
+});
+
+plRename.addEventListener("click", ()=>{
+  const pl = currentPL();
+  if (!pl) return;
+  const name = prompt("プレイリスト名変更", pl.name);
+  if (!name) return;
+  pl.name = name;
+  saveStore(store);
+  renderPlaylists();
+  log(`プレイリスト名変更: ${name}`);
+});
+
+plDelete.addEventListener("click", ()=>{
+  if (store.playlists.length <= 1){
+    alert("最後の1つは削除できません");
+    return;
+  }
+  const pl = currentPL();
+  if (!pl) return;
+  if (!confirm(`プレイリスト「${pl.name}」を削除しますか？`)) return;
+
+  const idx = plIndexById(pl.id);
+  store.playlists.splice(idx, 1);
+  store.selectedId = store.playlists[0].id;
+  saveStore(store);
+  renderPlaylists();
+  stop();
+  currentIndex = -1;
+  renderTracks();
+  setNowText("未再生", "曲をタップして再生");
+  log("プレイリスト削除");
+});
+
+/* ---------------------------
+ * buttons
+ * -------------------------- */
+sortNum.addEventListener("click", sortByFilenameNumeric);
+clearTracks.addEventListener("click", async ()=>{ await clearCurrentPlaylistTracks(); });
+
+btnPlay.addEventListener("click", async ()=>{
+  if (audio.paused) {
+    await playCurrent();
+  } else {
+    pause();
+  }
+});
+
+btnStop.addEventListener("click", stop);
+btnNext.addEventListener("click", async ()=>{ await next(); });
+btnPrev.addEventListener("click", async ()=>{ await prev(); });
+
+btnBack10.addEventListener("click", ()=>{
+  audio.currentTime = Math.max(0, audio.currentTime - 10);
+});
+
+btnFwd10.addEventListener("click", ()=>{
+  audio.currentTime = Math.min(isFinite(audio.duration) ? audio.duration : 1e9, audio.currentTime + 10);
+});
+
+editToggle.addEventListener("click", ()=>{
+  editMode = !editMode;
+  editToggle.textContent = `編集: ${editMode ? "ON" : "OFF"}`;
+  renderTracks();
+});
+
+logClear.addEventListener("click", ()=>{
+  logEl.textContent = "";
+});
+
+/* ---------------------------
+ * init
+ * -------------------------- */
+async function restoreVisibleDurations(){
+  const pls = store.playlists;
+  for (const pl of pls) {
+    for (const t of pl.tracks) {
+      if (t.durationSec != null) continue;
+      try {
+        const f = await dbGetFile(t.fileId);
+        if (!f) continue;
+
+        const tmp = document.createElement("audio");
+        const tmpURL = URL.createObjectURL(f);
+        tmp.src = tmpURL;
+
+        await new Promise(res=>{
+          tmp.addEventListener("loadedmetadata", res, { once:true });
+          tmp.addEventListener("error", res, { once:true });
+          setTimeout(res, 800);
+        });
+
+        if (isFinite(tmp.duration) && tmp.duration > 0) {
+          t.durationSec = tmp.duration;
+        }
+        URL.revokeObjectURL(tmpURL);
+      } catch {}
+    }
+  }
+  saveStore(store);
+}
+
+async function init(){
+  renderPlaylists();
+  await restoreVisibleDurations();
+  renderTracks();
+  setNowText("未再生", "曲をタップして再生");
+  log("起動しました（IndexedDB保存版）");
+  log("曲ファイルはブラウザ内に保存されます。");
+}
+init();
+</script>
+</body>
+</html>
