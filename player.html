@@ -247,7 +247,10 @@ function renderTracks(){
     };
 
     // タップしたら「再生準備」だけ
-    li.onclick = () => prepareTrack(i);
+    li.onclick = async () => {
+  prepareTrack(i);
+  await playCurrent();
+};
 
     li.appendChild(handle);
     li.appendChild(name);
