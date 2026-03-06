@@ -800,10 +800,11 @@ async function prepareTrack(i){
   }
 
   currentIndex = i;
-  audio.src = url;
-  setNowText(t.name, "準備完了");
-  renderTracks();
-  return true;
+audio.src = url;
+setNowText(t.name, "準備完了");
+updateMediaSession(t, "paused");
+renderTracks();
+return true;
 }
 
 async function playCurrent(){
@@ -820,11 +821,12 @@ async function playCurrent(){
 
   try {
     await audio.play();
-    const t = currentPL()?.tracks[currentIndex];
-    setNowText(t ? t.name : "再生中", "再生中");
-    log(`再生開始: ${t?.name || ""}`);
-    renderTracks();
-    return true;
+const t = currentPL()?.tracks[currentIndex];
+setNowText(t ? t.name : "再生中", "再生中");
+updateMediaSession(t, "playing");
+log(`再生開始: ${t?.name || ""}`);
+renderTracks();
+return true;
   } catch (e) {
     log(`play()失敗: ${e?.name || e} / ${e?.message || ""}`);
     return false;
