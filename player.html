@@ -310,6 +310,11 @@
       <button id="stop">⏹</button>
     </div>
 
+    <div class="control-row" aria-label="再生モード">
+      <button id="repeatOne" aria-pressed="false">🔂 1曲ループ: OFF</button>
+      <button id="autoNext" aria-pressed="true" class="primary">連続再生: ON</button>
+    </div>
+
     <div class="seek-wrap">
       <input id="seek" type="range" min="0" max="1" step="0.01" value="0"/>
       <div class="time-row">
@@ -429,6 +434,14 @@ audio.playsInline = true;
 let currentIndex = -1;
 let editMode = false;
 let scrubbing = false;
+const MODE_KEY = "my_music_player_modes_v1";
+let repeatOne = false;
+let autoNext = true;
+try {
+  const modes = JSON.parse(localStorage.getItem(MODE_KEY) || "{}");
+  repeatOne = modes.repeatOne === true;
+  autoNext = modes.autoNext !== false;
+} catch {}
 
 /* ---------------------------
  * UI refs
@@ -450,6 +463,24 @@ const btnPlay = document.getElementById("play");
 const btnFwd10 = document.getElementById("fwd10");
 const btnNext = document.getElementById("next");
 const btnStop = document.getElementById("stop");
+const btnRepeatOne = document.getElementById("repeatOne");
+const btnAutoNext = document.getElementById("autoNext");
+
+function renderPlaybackModes(){
+  audio.loop = repeatOne;
+  for (const [button, enabled, label] of [[btnRepeatOne, repeatOne, "🔂 1曲ループ"], [btnAutoNext, autoNext, "連続再生"]]) {
+    button.textContent = `${label}: ${enabled ? "ON" : "OFF"}`;
+    button.classList.toggle("primary", enabled);
+    button.setAttribute("aria-pressed", String(enabled));
+  }
+}
+function savePlaybackModes(){
+  renderPlaybackModes();
+  try { localStorage.setItem(MODE_KEY, JSON.stringify({repeatOne, autoNext})); } catch {}
+}
+btnRepeatOne.addEventListener("click", () => { repeatOne = !repeatOne; savePlaybackModes(); });
+btnAutoNext.addEventListener("click", () => { autoNext = !autoNext; savePlaybackModes(); });
+renderPlaybackModes();
 
 const nowName = document.getElementById("nowName");
 const nowStatus = document.getElementById("nowStatus");
@@ -901,8 +932,19 @@ seek.addEventListener("change", ()=>{
 });
 
 audio.addEventListener("ended", async ()=>{
-  log("曲終了 → 次へ");
-  await next();
+  if (currentIndex < 0 || !audio.ended) return;
+  if (repeatOne) {
+    audio.currentTime = 0;
+    await playCurrent();
+  } else if (autoNext && currentIndex + 1 < (currentPL()?.tracks.length || 0)) {
+    log("曲終了 → 次へ");
+    await next();
+  } else {
+    const t = currentPL()?.tracks[currentIndex];
+    setNowText(t?.name, "再生終了");
+    updateMediaSession(t, "paused");
+    log("曲終了 → 停止");
+  }
 });
 
 /* ---------------------------
