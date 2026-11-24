@@ -1,4 +1,4 @@
-const CACHE_NAME = "my-player-cache-v1";
+const CACHE_NAME = "my-player-cache-v2";
 const APP_SHELL = [
   "./player.html",
   "./manifest.json",
@@ -17,7 +17,7 @@ self.addEventListener("activate", (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys.map((key) => {
-          if (key !== CACHE_NAME) return caches.delete(key);
+          if (key.startsWith("my-player-cache-") && key !== CACHE_NAME) return caches.delete(key);
         })
       )
     )
