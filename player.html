@@ -183,6 +183,11 @@
     margin-top:4px;
   }
 
+  .playlist-progress{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+  .playlist-progress progress{width:100%;height:10px;accent-color:var(--accent);display:block;margin:8px 0}
+  .playlist-progress progress[hidden]{display:none}
+  .playlist-progress .time-row{gap:8px;flex-wrap:wrap}
+  .playlist-clock{font-size:20px;font-weight:750;font-variant-numeric:tabular-nums}
   .file-name{
     min-width:0;
     overflow:hidden;
@@ -321,6 +326,13 @@
         <span id="tCur">0:00</span>
         <span id="tDur">0:00</span>
       </div>
+    </div>
+    <div class="playlist-progress">
+      <div class="row"><b>プレイリスト全体</b><span class="spacer"></span><span id="plTrackCount" class="sub">0 / 0 曲</span></div>
+      <div class="playlist-clock"><span id="plElapsed">0:00</span> <span class="sub">/ <span id="plTotal">0:00</span></span></div>
+      <progress id="plProgress" max="1" value="0" aria-label="プレイリスト内の再生位置"></progress>
+      <div class="time-row"><span id="plPercent">0%</span><span id="plRemaining">残り 0:00</span></div>
+      <div id="plDurationNote" class="sub" hidden></div>
     </div>
   </div>
 
@@ -650,6 +662,7 @@ function renderPlaylists(){
 }
 
 function renderTracks(){
+  updatePlaylistProgress();
   const pl = currentPL();
   trackList.innerHTML = "";
 
@@ -888,6 +901,7 @@ function stop(){
   setNowText("停止", "停止");
   updateMediaSession(t, "paused");
   log("停止");
+  updatePlaylistProgress();
 }
 
 async function next(){
@@ -908,6 +922,49 @@ async function prev(){
 }
 
 /* ---------------------------
+ * playlist timeline (position, not accumulated listening time)
+ * -------------------------- */
+function playlistTimeline(tracks,index,position){
+  const known = t => Number.isFinite(t.durationSec) && t.durationSec > 0;
+  const total = tracks.reduce((sum,t)=>sum+(known(t)?t.durationSec:0),0);
+  const missing = tracks.filter(t=>!known(t)).length;
+  const valid = index>=0 && index<tracks.length;
+  const before = valid ? tracks.slice(0,index) : [];
+  const prefix = before.reduce((sum,t)=>sum+(known(t)?t.durationSec:0),0);
+  const offset = valid ? Math.max(0,Number.isFinite(position)?position:0) : 0;
+  const elapsed = prefix+(valid&&known(tracks[index])?Math.min(offset,tracks[index].durationSec):offset);
+  return {total,missing,elapsed,elapsedKnown:before.every(known),remaining:Math.max(0,total-elapsed),fraction:total>0?Math.min(1,elapsed/total):0,number:valid?index+1:0};
+}
+function formatPlaylistTime(seconds){
+  const s=Math.max(0,Math.floor(seconds));
+  const h=Math.floor(s/3600),m=Math.floor(s%3600/60),r=s%60;
+  return h>0 ? h+":"+String(m).padStart(2,"0")+":"+String(r).padStart(2,"0") : m+":"+String(r).padStart(2,"0");
+}
+const plElapsed=document.getElementById("plElapsed"),plTotal=document.getElementById("plTotal"),plProgress=document.getElementById("plProgress"),plPercent=document.getElementById("plPercent"),plRemaining=document.getElementById("plRemaining"),plTrackCount=document.getElementById("plTrackCount"),plDurationNote=document.getElementById("plDurationNote");
+function updatePlaylistProgress(position=audio.currentTime){
+  const tracks=currentPL()?.tracks||[];
+  const p=playlistTimeline(tracks,currentIndex,position);
+  plElapsed.textContent=(p.elapsedKnown?"":"≥ ")+formatPlaylistTime(p.elapsed);
+  plTotal.textContent=(p.missing?"≥ ":"")+formatPlaylistTime(p.total);
+  plTrackCount.textContent=p.number+" / "+tracks.length+" 曲";
+  plProgress.hidden=Boolean(p.missing);
+  plProgress.value=p.fraction;
+  plPercent.textContent=p.missing?"進捗率未確定":(p.fraction*100).toFixed(1)+"%";
+  plRemaining.textContent=p.missing?"残り時間未確定":"残り "+formatPlaylistTime(p.remaining);
+  plDurationNote.hidden=!p.missing;
+  plDurationNote.textContent=p.missing?p.missing+" 曲の長さが未取得です。表示時間は判明分です。":"";
+}
+audio.addEventListener("loadedmetadata",()=>{
+  const track=currentPL()?.tracks[currentIndex];
+  if(track && Number.isFinite(audio.duration) && audio.duration>0){
+    if(track.durationSec!==audio.duration){track.durationSec=audio.duration;saveStore(store);renderTracks();}
+  }
+  updatePlaylistProgress();
+});
+audio.addEventListener("seeked",()=>updatePlaylistProgress());
+audio.addEventListener("ended",()=>updatePlaylistProgress());
+
+/* ---------------------------
  * seek
  * -------------------------- */
 audio.addEventListener("timeupdate", ()=>{
@@ -919,17 +976,20 @@ audio.addEventListener("timeupdate", ()=>{
     tCur.textContent = formatTime(audio.currentTime);
     tDur.textContent = formatTime(d);
   }
+  updatePlaylistProgress();
 });
 
 seek.addEventListener("input", ()=>{
   scrubbing = true;
   tCur.textContent = formatTime(Number(seek.value));
+  updatePlaylistProgress(Number(seek.value));
 });
 
 seek.addEventListener("change", ()=>{
   const v = Number(seek.value);
   if (isFinite(v)) audio.currentTime = v;
   scrubbing = false;
+  updatePlaylistProgress();
 });
 
 // Continue in playlist order, skipping empty lists; stop after the final list.
@@ -1170,6 +1230,7 @@ async function restoreVisibleDurations(){
 
 async function init(){
   renderPlaylists();
+  renderTracks();
   await restoreVisibleDurations();
   renderTracks();
   setNowText("未再生", "曲をタップして再生");
