@@ -1,4 +1,4 @@
-const CACHE_NAME = "my-player-cache-v2";
+const CACHE_NAME = "my-player-cache-v3";
 const APP_SHELL = [
   "./player.html",
   "./manifest.json",
