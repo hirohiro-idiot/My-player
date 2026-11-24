@@ -312,7 +312,7 @@
 
     <div class="control-row" aria-label="再生モード">
       <button id="repeatOne" aria-pressed="false">🔂 1曲ループ: OFF</button>
-      <button id="autoNext" aria-pressed="true" class="primary">連続再生: ON</button>
+      <button id="autoNext" aria-pressed="true" class="primary">連続再生（全リスト）: ON</button>
     </div>
 
     <div class="seek-wrap">
@@ -440,7 +440,7 @@ let autoNext = true;
 try {
   const modes = JSON.parse(localStorage.getItem(MODE_KEY) || "{}");
   repeatOne = modes.repeatOne === true;
-  autoNext = modes.autoNext !== false;
+  autoNext = !repeatOne && modes.autoNext !== false;
 } catch {}
 
 /* ---------------------------
@@ -468,7 +468,7 @@ const btnAutoNext = document.getElementById("autoNext");
 
 function renderPlaybackModes(){
   audio.loop = repeatOne;
-  for (const [button, enabled, label] of [[btnRepeatOne, repeatOne, "🔂 1曲ループ"], [btnAutoNext, autoNext, "連続再生"]]) {
+  for (const [button, enabled, label] of [[btnRepeatOne, repeatOne, "🔂 1曲ループ"], [btnAutoNext, autoNext, "連続再生（全リスト）"]]) {
     button.textContent = `${label}: ${enabled ? "ON" : "OFF"}`;
     button.classList.toggle("primary", enabled);
     button.setAttribute("aria-pressed", String(enabled));
@@ -478,8 +478,8 @@ function savePlaybackModes(){
   renderPlaybackModes();
   try { localStorage.setItem(MODE_KEY, JSON.stringify({repeatOne, autoNext})); } catch {}
 }
-btnRepeatOne.addEventListener("click", () => { repeatOne = !repeatOne; savePlaybackModes(); });
-btnAutoNext.addEventListener("click", () => { autoNext = !autoNext; savePlaybackModes(); });
+btnRepeatOne.addEventListener("click", () => { repeatOne = !repeatOne; if (repeatOne) autoNext = false; savePlaybackModes(); });
+btnAutoNext.addEventListener("click", () => { autoNext = !autoNext; if (autoNext) repeatOne = false; savePlaybackModes(); });
 renderPlaybackModes();
 
 const nowName = document.getElementById("nowName");
@@ -827,6 +827,7 @@ async function prepareTrack(i){
 
   const t = pl.tracks[i];
   const url = await ensureURLForTrack(t);
+  if (currentPL()?.id !== pl.id || pl.tracks[i]?.id !== t.id) return false;
   if (!url){
     log(`準備失敗: ${t.name} のファイル参照がありません`);
     return false;
@@ -868,8 +869,8 @@ async function playCurrent(){
 
 async function playAt(i){
   const ok = await prepareTrack(i);
-  if (!ok) return;
-  await playCurrent();
+  if (!ok) return false;
+  return await playCurrent();
 }
 
 function pause(){
@@ -931,20 +932,45 @@ seek.addEventListener("change", ()=>{
   scrubbing = false;
 });
 
+// Continue in playlist order, skipping empty lists; stop after the final list.
+function followingPlaylist(playlists, selectedId){
+  const index = playlists.findIndex(p=>p.id===selectedId);
+  return index < 0 ? null : playlists.slice(index+1).find(p=>p.tracks.length>0) || null;
+}
+async function autoAdvance(){
+  const pl = currentPL();
+  if (!pl) return false;
+  if (currentIndex + 1 < pl.tracks.length) return await playAt(currentIndex+1);
+  const target = followingPlaylist(store.playlists, pl.id);
+  if (!target) return false;
+  store.selectedId = target.id;
+  currentIndex = -1;
+  saveStore(store);
+  renderPlaylists();
+  renderTracks();
+  setNowText("未再生", "次のプレイリストを準備中");
+  log("プレイリスト自動切替: " + target.name);
+  return await playAt(0);
+}
+
 audio.addEventListener("ended", async ()=>{
   if (currentIndex < 0 || !audio.ended) return;
   if (repeatOne) {
     audio.currentTime = 0;
     await playCurrent();
-  } else if (autoNext && currentIndex + 1 < (currentPL()?.tracks.length || 0)) {
-    log("曲終了 → 次へ");
-    await next();
-  } else {
-    const t = currentPL()?.tracks[currentIndex];
-    setNowText(t?.name, "再生終了");
-    updateMediaSession(t, "paused");
-    log("曲終了 → 停止");
+    return;
   }
+  if (autoNext) {
+    try {
+      if (await autoAdvance()) return;
+    } catch (e) {
+      log("自動再生失敗: " + (e?.message || e));
+    }
+  }
+  const t = currentPL()?.tracks[currentIndex];
+  setNowText(t?.name, "再生終了");
+  updateMediaSession(t, "paused");
+  log("曲終了 → 停止");
 });
 
 /* ---------------------------
